@@ -108,6 +108,57 @@ class ConferenceQueryForms(messages.Message):
     """ConferenceQueryForms -- multiple ConferenceQueryForm inbound form message"""
     filters = messages.MessageField(ConferenceQueryForm, 1, repeated=True)
 
-class Session(messages.Message):
+
+class Session(ndb.Model):
+    """Session object - all fields for object"""
+    name            = ndb.StringProperty(required=True)
+    highlights      = ndb.StringProperty(repeated=True)
+    speakerUserId   = ndb.StringProperty()
+    duration        = ndb.IntegerProperty()
+    typeOfSession   = ndb.StringProperty(default='WORKSHOP')
+    startDate       = ndb.DateProperty()
+    startTime       = ndb.TimeProperty()
+
 
 class SessionForm(messages.Message):
+    """Session Form - messages relayed via form to object"""
+    name            = messages.StringField(1)
+    highlights      = messages.StringField(2, repeated=True)
+    speakerUserId   = messages.StringField(3)
+    duration        = messages.IntegerField(4)
+    typeOfSession   = messages.StringField(5)
+    startDate       = messages.StringField(6)
+    startTime       = messages.StringField(7)
+    websafeKey      = messages.StringField(8)
+
+
+class SessionForms(messages.Message):
+    """multiple Session forms"""
+    items = messages.MessageField(SessionForm, 1, repeated=True)
+
+# Disable type of session enum
+# class TypeOfSession(messages.Enum):
+#     """Type of available session - default to WORKSHOP"""
+#     WORKSHOP = 1
+#     COFFEE_SESSION = 2
+#     LECTURE = 3
+#     KEYNOTE = 4
+
+class SessionWishlist(ndb.Model):
+    """Wishlist of sessions"""
+    session = ndb.StringProperty(required=True)
+    sessionConference = ndb.StringProperty(required=True)
+    user_id = ndb.StringProperty(required=True)
+    sessionAdded = ndb.DateProperty(auto_now_add=True)
+
+class SessionWishlistForm(messages.Message):
+    """Form to handle wishlist sessions"""
+    session = messages.StringField(1)
+    sessionConference = messages.StringField(2)
+    user_id = messages.StringField(3)
+    sessionAdded = messages.StringField(4)
+    websafeKey = messages.StringField(5)
+
+class SessionWishlistForms(messages.Message):
+    """Multiple wishlist sessions"""
+    items = messages.MessageField(SessionWishlistForm, 1, repeated=True)
