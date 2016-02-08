@@ -55,8 +55,10 @@ from utils import getUserId
 EMAIL_SCOPE = endpoints.EMAIL_SCOPE
 API_EXPLORER_CLIENT_ID = endpoints.API_EXPLORER_CLIENT_ID
 MEMCACHE_ANNOUNCEMENTS_KEY = "RECENT_ANNOUNCEMENTS"
+MEMCACHE_SPEAKER_KEY = "FEATURED SPEAKER"
 ANNOUNCEMENT_TPL = ('Last chance to attend! The following conferences '
                     'are nearly sold out: %s')
+SPEAKER_TPL = ('Join us to hear %s')
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 DEFAULTS = {
@@ -119,6 +121,11 @@ SPEAKER_GET_REQUEST = endpoints.ResourceContainer(
 SESS_POST_REQUEST = endpoints.ResourceContainer(
     SessionForm,
     websafeConferenceKey=messages.StringField(1),
+)
+
+WISHLIST_REQUEST = endpoints.ResourceContainer(
+    message_types.VoidMessage,
+    websafeSessionKey=messages.StringField(1),
 )
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -441,9 +448,11 @@ class ConferenceApi(remote.Service):
                       url='/tasks/send_session_email'
                       )
 
-        # TODO
         # Add featured speaker - generate code and add here.
-
+        if Sessions.query(Session.speakerUserId == \
+                          data['speakerUserId']).count() > 1:
+            taskqueue.add(params={'speakerUserId': data['speakerUserId']},
+                          url='/tasks/set_featuredspeaker')
         # return session form
         return request
 
@@ -500,6 +509,42 @@ class ConferenceApi(remote.Service):
 
 # - - - Wishlist objects - - - - - - - - - - - - - - - - - - -
 
+    def _copySessionWishlisttoForm(self, wishlist):
+        """Copy relevent fields from Wishlist to WishlistForm"""
+        swl = SessionWishlistForm()
+        for field in swl.all_fields():
+            if hasattr(wishlist, field.name):
+                # convert Date to date string; just copy others
+                if field.name.endswith('Date'):
+                    setattr(swl, field.name, str(getattr(wishlist, field.name)))
+                else:
+                    setattr(swl, field.name, getattr(wishlist, field.name))
+
+            elif field.name == "websafeKey":
+                setattr(swl, field.name, wishlist.key.urlsafe())
+        swl.check_initialized()
+        return swl
+
+    @endpoints.method(WISHLIST_REQUEST, WishlistForm,
+                      path='wishlist',
+                      http_method='POST',
+                      name='addSessionToWishlist')
+    def addSessionToWishlist(self, request):
+        return
+
+    @endpoints.method(WISHLIST_REQUEST, SessionForms,
+                      path='wishlist',
+                      http_method='GET',
+                      name='getSessionsInWishlist')
+    def getSessionsInWishlist(self, request):
+        return
+
+    @endpoints.method(WISHLIST_REQUEST, SessionForms,
+                      path='wishlist',
+                      http_method='GET',
+                      name='deleteSessionInWishlist')
+    def deleteSessionInWishlist(self, request):
+        return
 
 # - - - Profile objects - - - - - - - - - - - - - - - - - - -
 
@@ -518,7 +563,8 @@ class ConferenceApi(remote.Service):
         return pf
 
     def _getProfileFromUser(self):
-        """Return user Profile from datastore, creating new one if non-existent."""
+        """Return user Profile from datastore, creating new one if
+         non-existent."""
         # make sure user is authed
         user = endpoints.get_current_user()
         if not user:
@@ -607,6 +653,23 @@ class ConferenceApi(remote.Service):
         """Return Announcement from memcache."""
         return StringMessage(data=memcache.get(MEMCACHE_ANNOUNCEMENTS_KEY) or "")
 
+# - - - Speaker Announcement - - - - - - - - - - - - - - - - - - - -
+    @staticmethod
+    def _cacheFeaturedSpeaker(speakerUserId):
+        """Create Speaker Announcement & assign to memcache
+        """
+        speaker = speakerUserId
+        announce_speaker = SPEAKER_TPL % (speaker)
+        memcache.set(MEMCACHE_SPEAKER_KEY, announce_speaker)
+
+        return speaker
+
+    @endpoints.method(message_types.VoidMessage, StringMessage,
+                      path='conference/announcement/get',
+                      http_method='GET', name='getAnnouncement')
+    def getFeaturedSpeaker(self, request):
+        """Return Speaker from memcache."""
+        return StringMessage(data=memcache.get(MEMCACHE_SPEAKER_KEY) or "")
 
 # - - - Registration - - - - - - - - - - - - - - - - - - - -
 
