@@ -449,7 +449,7 @@ class ConferenceApi(remote.Service):
                       )
 
         # Add featured speaker - generate code and add here.
-        if Sessions.query(Session.speakerUserId == \
+        if Session.query(Session.speakerUserId == \
                           data['speakerUserId']).count() > 1:
             taskqueue.add(params={'speakerUserId': data['speakerUserId']},
                           url='/tasks/set_featuredspeaker')
@@ -525,22 +525,22 @@ class ConferenceApi(remote.Service):
         swl.check_initialized()
         return swl
 
-    @endpoints.method(WISHLIST_REQUEST, WishlistForm,
-                      path='wishlist',
+    @endpoints.method(WISHLIST_REQUEST, SessionWishlistForms,
+                      path='wishlist/add',
                       http_method='POST',
                       name='addSessionToWishlist')
     def addSessionToWishlist(self, request):
         return
 
     @endpoints.method(WISHLIST_REQUEST, SessionForms,
-                      path='wishlist',
+                      path='sessions/wishlist',
                       http_method='GET',
                       name='getSessionsInWishlist')
     def getSessionsInWishlist(self, request):
         return
 
-    @endpoints.method(WISHLIST_REQUEST, SessionForms,
-                      path='wishlist',
+    @endpoints.method(WISHLIST_REQUEST, SessionWishlistForms,
+                      path='wishlist/delete',
                       http_method='GET',
                       name='deleteSessionInWishlist')
     def deleteSessionInWishlist(self, request):
@@ -659,14 +659,14 @@ class ConferenceApi(remote.Service):
         """Create Speaker Announcement & assign to memcache
         """
         speaker = speakerUserId
-        announce_speaker = SPEAKER_TPL % (speaker)
-        memcache.set(MEMCACHE_SPEAKER_KEY, announce_speaker)
+        # announce_speaker = SPEAKER_TPL % (speaker)
+        memcache.set(MEMCACHE_SPEAKER_KEY, speaker)
 
         return speaker
 
     @endpoints.method(message_types.VoidMessage, StringMessage,
-                      path='conference/announcement/get',
-                      http_method='GET', name='getAnnouncement')
+                      path='session/featured/get',
+                      http_method='GET', name='getFeaturedSpeaker')
     def getFeaturedSpeaker(self, request):
         """Return Speaker from memcache."""
         return StringMessage(data=memcache.get(MEMCACHE_SPEAKER_KEY) or "")
