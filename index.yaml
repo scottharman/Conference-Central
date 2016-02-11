@@ -81,6 +81,11 @@ indexes:
 
 - kind: Conference
   properties:
+  - name: seatsAvailable
+  - name: name
+
+- kind: Conference
+  properties:
   - name: month
   - name: name
 
@@ -94,3 +99,29 @@ indexes:
   properties:
   - name: topics
   - name: name
+
+- kind: Session
+  ancestor: yes
+  properties:
+  - name: typeOfSession
+  - name: startTime
+
+- kind: Session
+  ancestor: yes
+  properties:
+  - name: typeOfSession
+  - name: speakerUserId
+  - name: startTime
+
+- kind: Session
+  ancestor: yes
+  properties:
+  - name: speakerUserId
+  - name: startTime
+
+- kind: Session
+  ancestor: yes
+  properties:
+  - name: typeOfSession
+  - name: startTime
+  - name: startDate

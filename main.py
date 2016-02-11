@@ -47,7 +47,7 @@ class SendSessionEmailHandler(webapp2.RequestHandler):
             'You created a new Session!',            # subj
             'Hi, you have created a following '         # body
             'session:\r\n\r\n%s' % self.request.get(
-                'sessionInfo')
+                'name')
         )
 
 class SetSpeakerHandler(webapp2.RequestHandler):

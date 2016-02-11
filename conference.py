@@ -39,11 +39,12 @@ from models import TeeShirtSize
 from models import Session
 from models import SessionForm
 from models import SessionForms
-# disable type of session
-# from models import TypeOfSession
-from models import SessionWishlist
-from models import SessionWishlistForm
-from models import SessionWishlistForms
+# reenable type of session for enum - tidier.
+from models import TypeOfSession
+# Move sessionkey for user wishlist into profile
+# from models import SessionWishlist
+# from models import SessionWishlistForm
+# from models import SessionWishlistForms
 
 from settings import WEB_CLIENT_ID
 from settings import ANDROID_CLIENT_ID
@@ -70,7 +71,8 @@ DEFAULTS = {
 
 SESSION_DEFAULTS = {
     "highlights": ["Default", ],
-    "duration": 1,
+    "duration": 60,
+    "startTime": '10:00',
     "speakerUserId": "None",
     "typeOfSession": "WORKSHOP",
 }
@@ -383,6 +385,10 @@ class ConferenceApi(remote.Service):
                 # convert Date to date string; just copy others
                 if field.name.endswith('Date') or field.name.endswith('Time'):
                     setattr(sf, field.name, str(getattr(sess, field.name)))
+                # Setting enum value for typeofsession
+                elif field.name == "typeOfSession":
+                    setattr(sf, field.name, getattr(TypeOfSession),
+                            getattr(sess, field.name))
                 else:
                     setattr(sf, field.name, getattr(sess, field.name))
 
@@ -432,8 +438,8 @@ class ConferenceApi(remote.Service):
         if data['typeOfSession']:
             data['typeOfSession'] = data['typeOfSession'].upper()
         # Turning enum type of session back to string while debuggering.
-        # if data['typeOfSession']:
-        #    data['typeOfSession'] = str(data['typeOfSession'])
+        if data['typeOfSession']:
+            data['typeOfSession'] = str(data['typeOfSession'])
         # generate Session Key based on Conference Key
         s_id = Session.allocate_ids(size=1, parent=conf_key)[0]
         s_key = ndb.Key(Session, s_id, parent=conf_key)
@@ -474,8 +480,7 @@ class ConferenceApi(remote.Service):
     def getConferenceSessions(self, request):
         """Query all sessions based on websafekey
         Given a conference, return all sessions"""
-        sessions = Session.query(ancestor=ndb.Key(urlsafe=request.
-                                                  websafeConferenceKey))
+        sessions = Session.query(ancestor=ndb.Key(urlsafe=request.                                                  websafeConferenceKey)).order(Session.startTime)  # noqa
         return SessionForms(items=[self._copySessionToForm(session) for
                                    session in sessions])
 
@@ -486,8 +491,7 @@ class ConferenceApi(remote.Service):
     def getConferenceSessionsByType(self, request):
         """Query all conferences based on websafekey, then return all sessions
         matching typeOfSession"""
-        sessions = Session.query(ancestor=ndb.Key(urlsafe=request.
-                                                  websafeConferenceKey))
+        sessions = Session.query(ancestor=ndb.Key(urlsafe=request.                                                  websafeConferenceKey)).order(Session.startTime)  # noqa
         # sessions = sessions.filter(Session.typeOfSession == 'KEYNOTE')
         if request.typeOfSession:
             sessions = sessions.filter(Session.typeOfSession \
@@ -525,7 +529,7 @@ class ConferenceApi(remote.Service):
         swl.check_initialized()
         return swl
 
-    @endpoints.method(WISHLIST_REQUEST, SessionWishlistForms,
+    @endpoints.method(WISHLIST_REQUEST, BooleanMessage,
                       path='wishlist/add',
                       http_method='POST',
                       name='addSessionToWishlist')
@@ -539,7 +543,7 @@ class ConferenceApi(remote.Service):
     def getSessionsInWishlist(self, request):
         return
 
-    @endpoints.method(WISHLIST_REQUEST, SessionWishlistForms,
+    @endpoints.method(WISHLIST_REQUEST, BooleanMessage,
                       path='wishlist/delete',
                       http_method='GET',
                       name='deleteSessionInWishlist')
