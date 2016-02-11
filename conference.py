@@ -37,10 +37,10 @@ from models import ConferenceForms
 from models import ConferenceQueryForms
 from models import TeeShirtSize
 from models import Session
-from models import SessionForm
-from models import SessionForms
 # reenable type of session for enum - tidier.
 from models import TypeOfSession
+from models import SessionForm
+from models import SessionForms
 # Move sessionkey for user wishlist into profile
 # from models import SessionWishlist
 # from models import SessionWishlistForm
@@ -75,6 +75,8 @@ SESSION_DEFAULTS = {
     "startTime": '10:00',
     "speakerUserId": "None",
     "typeOfSession": "WORKSHOP",
+    # Can't get this working
+    # "typeOfSession": str(TypeOfSession.WORKSHOP),
 }
 
 OPERATORS = {
@@ -385,10 +387,10 @@ class ConferenceApi(remote.Service):
                 # convert Date to date string; just copy others
                 if field.name.endswith('Date') or field.name.endswith('Time'):
                     setattr(sf, field.name, str(getattr(sess, field.name)))
-                # Setting enum value for typeofsession
-                elif field.name == "typeOfSession":
-                    setattr(sf, field.name, getattr(TypeOfSession),
-                            getattr(sess, field.name))
+                # Setting enum value for typeofsession - failed again.
+                # elif field.name == "typeOfSession":
+                #     setattr(sf, field.name, getattr(TypeOfSession,
+                #             getattr(sess, field.name)))
                 else:
                     setattr(sf, field.name, getattr(sess, field.name))
 
@@ -435,11 +437,10 @@ class ConferenceApi(remote.Service):
 
         if data['startTime']:
             data['startTime'] = datetime.strptime(data['startTime'][:5], "%H:%M").time()
+        # Turning enum type of session back to string.
+        # failed again - will uppercase it instead.
         if data['typeOfSession']:
             data['typeOfSession'] = data['typeOfSession'].upper()
-        # Turning enum type of session back to string while debuggering.
-        if data['typeOfSession']:
-            data['typeOfSession'] = str(data['typeOfSession'])
         # generate Session Key based on Conference Key
         s_id = Session.allocate_ids(size=1, parent=conf_key)[0]
         s_key = ndb.Key(Session, s_id, parent=conf_key)
@@ -479,7 +480,7 @@ class ConferenceApi(remote.Service):
                       name='getConferenceSessions')
     def getConferenceSessions(self, request):
         """Query all sessions based on websafekey
-        Given a conference, return all sessions"""
+        Given a conference, return all sessions ordered by start time"""
         sessions = Session.query(ancestor=ndb.Key(urlsafe=request.                                                  websafeConferenceKey)).order(Session.startTime)  # noqa
         return SessionForms(items=[self._copySessionToForm(session) for
                                    session in sessions])
@@ -490,9 +491,10 @@ class ConferenceApi(remote.Service):
                       name='getConferenceSessionsByType')
     def getConferenceSessionsByType(self, request):
         """Query all conferences based on websafekey, then return all sessions
-        matching typeOfSession"""
+        matching typeOfSession - added default order by on time"""
         sessions = Session.query(ancestor=ndb.Key(urlsafe=request.                                                  websafeConferenceKey)).order(Session.startTime)  # noqa
         # sessions = sessions.filter(Session.typeOfSession == 'KEYNOTE')
+        # testing on string match of type keynote
         if request.typeOfSession:
             sessions = sessions.filter(Session.typeOfSession \
                                        == request.typeOfSession.upper())
@@ -511,44 +513,92 @@ class ConferenceApi(remote.Service):
         return SessionForms(items=[self._copySessionToForm(session) for
                             session in sessions])
 
+# - - - Enhanced Queries - - - - - - - - - - - - - - - - - - -
+    @endpoints.method(message_types.VoidMessage, SessionForms,
+                      path='conference/early/sessions',
+                      http_method='GET',
+                      name='getEarlyNonKeynoteSessions')
+    def getEarlyNonKeynoteSessions(self, request):
+        """Query all sessions - returning all non-keynotes before 7pm"""
+        evening = datetime.strptime("19:00", "%H:%M").time()
+        # To cope with google error - cannot have inequality filters on
+        # multiple properties - split the query and execute in order
+        sessions = Session.query().order(Session.startTime)
+        sessions = sessions.filter(Session.startTime < evening)
+        # have to create a new structure to contain filtered sessions.
+        filtered = []
+        for session in sessions:
+            if session.typeOfSession != 'KEYNOTE':
+                filtered.append(session)
+        sessions = sessions.filter(Session.startTime < evening)
+        return SessionForms(items=[self._copySessionToForm(session) for
+                                   session in filtered])
+
+
+# TODO Define additional useful searches for sessions or conferences
+
+
 # - - - Wishlist objects - - - - - - - - - - - - - - - - - - -
-
-    def _copySessionWishlisttoForm(self, wishlist):
-        """Copy relevent fields from Wishlist to WishlistForm"""
-        swl = SessionWishlistForm()
-        for field in swl.all_fields():
-            if hasattr(wishlist, field.name):
-                # convert Date to date string; just copy others
-                if field.name.endswith('Date'):
-                    setattr(swl, field.name, str(getattr(wishlist, field.name)))
-                else:
-                    setattr(swl, field.name, getattr(wishlist, field.name))
-
-            elif field.name == "websafeKey":
-                setattr(swl, field.name, wishlist.key.urlsafe())
-        swl.check_initialized()
-        return swl
 
     @endpoints.method(WISHLIST_REQUEST, BooleanMessage,
                       path='wishlist/add',
                       http_method='POST',
                       name='addSessionToWishlist')
     def addSessionToWishlist(self, request):
-        return
+        """Add the supplied session key to user's wishlist.  Current wishList
+        items are viewable in the user's profile"""
+        # preload necessary data items
+        user = endpoints.get_current_user()
+        if not user:
+            raise endpoints.UnauthorizedException('Authorization required')
+
+        # get sessionkey if it exists from the session passed in
+        if not request.websafeSessionKey:
+            raise endpoints.BadRequestException("Session\
+             'websafeSessionKey' field required")
+        # get actual session.key from sessionkey
+        session_key = ndb.Key(urlsafe=request.websafeSessionKey).get().key
+        # get user profile from user id
+        prof = self._getProfileFromUser()
+
+        # add session if not already in wishlist
+        if request.websafeSessionKey not in prof.wishList:
+            prof.wishList.append(request.websafeSessionKey)
+        prof.put()
+        return self._copyProfileToForm(prof)
+
 
     @endpoints.method(WISHLIST_REQUEST, SessionForms,
                       path='sessions/wishlist',
                       http_method='GET',
                       name='getSessionsInWishlist')
     def getSessionsInWishlist(self, request):
-        return
+        """Return the sessions in the user's profile wishlist"""
+        # preload necessary data items
+        user = endpoints.get_current_user()
+        if not user:
+            raise endpoints.UnauthorizedException('Authorization required')
+        # get user profile, then fetch list of session keys from user profile
+        prof = self._getProfileFromUser()
+        # If there is a wishlist, fetch it, else throw an error
+        if not prof.wishList:
+            raise endpoints.BadRequestException("User has no wishlist")
+
+        sessions = []
+        for session in prof.wishList:
+            sessions.append(ndb.Key(session).get())
+
+        # return the wishlist as a list of sessionforms
+        return SessionForms(items=[self._copySessionToForm(session) for
+                            session in sessions])
 
     @endpoints.method(WISHLIST_REQUEST, BooleanMessage,
                       path='wishlist/delete',
                       http_method='GET',
                       name='deleteSessionInWishlist')
     def deleteSessionInWishlist(self, request):
-        return
+        """Remove the specified session for user's wishlist"""
+        
 
 # - - - Profile objects - - - - - - - - - - - - - - - - - - -
 

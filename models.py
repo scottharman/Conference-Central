@@ -120,7 +120,7 @@ class Session(ndb.Model):
     highlights = ndb.StringProperty(repeated=True)
     speakerUserId = ndb.StringProperty()
     duration = ndb.IntegerProperty()
-    typeOfSession = ndb.StringProperty(default='WORKSHOP')
+    typeOfSession = ndb.StringProperty()
     startDate = ndb.DateProperty(auto_now_add=True)  # defaults to today
     startTime = ndb.TimeProperty()
 
@@ -131,7 +131,9 @@ class SessionForm(messages.Message):
     highlights = messages.StringField(2, repeated=True)
     speakerUserId = messages.StringField(3)
     duration = messages.IntegerField(4)
-    typeOfSession = messages.EnumField('TypeOfSession', 5)
+    typeOfSession = messages.StringField(5)
+    # Foiled again!
+    # typeOfSession = messages.EnumField('TypeOfSession', 5)
     startDate = messages.StringField(6)
     startTime = messages.StringField(7)
     websafeKey = messages.StringField(8)

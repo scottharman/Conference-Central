@@ -122,6 +122,11 @@ indexes:
 - kind: Session
   ancestor: yes
   properties:
+  - name: startTime
+
+- kind: Session
+  ancestor: yes
+  properties:
   - name: typeOfSession
   - name: startTime
   - name: startDate
