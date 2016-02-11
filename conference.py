@@ -540,7 +540,7 @@ class ConferenceApi(remote.Service):
 
 # - - - Wishlist objects - - - - - - - - - - - - - - - - - - -
 
-    @endpoints.method(WISHLIST_REQUEST, BooleanMessage,
+    @endpoints.method(WISHLIST_REQUEST, ProfileForm,
                       path='wishlist/add',
                       http_method='POST',
                       name='addSessionToWishlist')
@@ -562,8 +562,8 @@ class ConferenceApi(remote.Service):
         prof = self._getProfileFromUser()
 
         # add session if not already in wishlist
-        if request.websafeSessionKey not in prof.wishList:
-            prof.wishList.append(request.websafeSessionKey)
+        if request.websafeSessionKey not in prof.sessionWishList:
+            prof.sessionWishList.append(request.websafeSessionKey)
         prof.put()
         return self._copyProfileToForm(prof)
 
@@ -581,11 +581,11 @@ class ConferenceApi(remote.Service):
         # get user profile, then fetch list of session keys from user profile
         prof = self._getProfileFromUser()
         # If there is a wishlist, fetch it, else throw an error
-        if not prof.wishList:
+        if not prof.sessionWishList:
             raise endpoints.BadRequestException("User has no wishlist")
 
         sessions = []
-        for session in prof.wishList:
+        for session in prof.sessionWishList:
             sessions.append(ndb.Key(session).get())
 
         # return the wishlist as a list of sessionforms
@@ -598,7 +598,7 @@ class ConferenceApi(remote.Service):
                       name='deleteSessionInWishlist')
     def deleteSessionInWishlist(self, request):
         """Remove the specified session for user's wishlist"""
-        
+
 
 # - - - Profile objects - - - - - - - - - - - - - - - - - - -
 
