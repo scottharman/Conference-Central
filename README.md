@@ -23,7 +23,7 @@ Application is currently deployed at [udacity-conference-app-1196.appspot.com][4
 
 # Task Implementation
 ## Task 1 - Session class and SessionForm class
-Define Session class and SessionForm The Session model contains the following, everything was fairly straightforward, as it wouldn't make sense to have multiple durations, or types of session.   We can have multiple different highlights, and a speaker wouldn't necessarily have to be an entity.  This can be added as a future enhancement.
+Define Session class and SessionForm The Session model contains the following, everything was fairly straightforward, as it wouldn't make sense to have multiple durations, or types of session.   We can have multiple different highlights, and a speaker wouldn't necessarily have to be an entity.  This is currently being worked on.
 
    `Session name`  _string_ **_complete_**
 
@@ -40,7 +40,7 @@ Define Session class and SessionForm The Session model contains the following, e
    `start time (in 24 hour notation so it can be ordered).` _time field_ implicitly orderable
 
 ## Added Endpoints
-Implentation of the Session endpoints - these are the required endpoints for basic session manipulation.  Currently getSessionsBySpeaker takes a string, and not a speaker object, and I will implement this if I have time.
+Implentation of the Session endpoints - these are the required endpoints for basic session manipulation.  Currently getSessionsBySpeaker takes a string, and not a speaker object, and I will implement this if I have time.  In all cases except for `getSessionsBySpeaker` the endpoint takes a `websafeConferenceKey` which is accessible through the Conference object, so provided you can find a conference, it's trivial to locate the Key required to use as a parent when creating the session.
 
   `getConferenceSessions(websafeConferenceKey)` -- Given a conference, return all sessions **_complete_**
 
@@ -50,35 +50,38 @@ Implentation of the Session endpoints - these are the required endpoints for bas
 
   `createSession(SessionForm, websafeConferenceKey)` -- open to the organizer of the conference **_complete_**
 
-## Notes on implementation:
-Struggled with debugging initially, as in Chrome the behaviour of the local instance changed fairly drastically the moment I was adding new ndb entities. Also = lots of finger trouble led to almost constant misspellings of ndb. I did struggle with debugging in the app engine, as I kept losing trace of the log locations, and having to jump around to get entity contents is much harder than I'm used to.  Coming from a traditional rdbms background, I think debugging this way is much harder, as I would simply set my breakpoints in code, tail any logs that I set up, and turn on the general query log in the database engine to make sure my inserts are rational.  The app engine abstraction makes it much harder to create a single unified debugging environment - so I'd like to see if people have a solution for that.
-
 ## Feature Implementation
 Sessions are effectively a stub of conferences, in the sense that a conference can have none or more sessions associated with it, and a session must always belong to one and only one conference. This makes design relatively straightforward. Speakers do not need to be associated with a Conference, and have a one to many relationship with sessions. I've not tied them to system users, as there is no logical reason why they have to be participants in any other part, but this could be a simple enhancement. This meant I could go straight from implementation of the Sessions, to then create my two tasks, which were to send an email on session creation, and also to set the featured speaker.  I was finding it difficult to set the featured speaker from values, so I duplicated the email task first so I could get feedback on my changes fairly quickly and easily
-- Add Sessions to User Wishlist
 
-  Define the following Endpoints methods
+## Add Sessions to User Wishlist
+Define the following Endpoints methods
 
-  `addSessionToWishlist(SessionKey)`-- adds the session to the user's list of sessions they are interested in attending
+`addSessionToWishlist(SessionKey)`-- adds the session to the user's list of sessions they are interested in attending, ignoring duplicated values
 
-  `getSessionsInWishlist()` -- query for all the sessions in a conference that the user is interested in
+`getSessionsInWishlist()` -- query for all the sessions in a conference that the user is interested in, which have been added to the user's profile.
 
-  `deleteSessionInWishlist(SessionKey)` -- removes the session from the user's list of sessions they are interested in attending
+`deleteSessionInWishlist(SessionKey)` -- removes the session from the user's list of sessions they are interested in attending.  Handle this gracefully
 
-- Work on indexes and queries
-
-   Create indexes
-
-   Come up with 2 additional queries
-
-   Solve the following query related problem: Let's say that you don't like workshops and you don't like sessions after 7 pm. How would you handle a query for all non-workshop sessions before 7 pm? What is the problem for implementing this query? What ways to solve it did you think of?
-
-- Add a Task
+### Additional Features
+I decided it would be useful to be able to emai the session organiser when a session was created, this way they have immediate feedback that this has been done, and have a record of key information. This was initially an exercise so I could understand more about tasks and as preparation for writing the code for getFeaturedSpeaker() and the task queue.
 - When adding a new session to a conference, determine whether or not the session's speaker should be the new featured speaker. This should be handled using App Engine's Task Queue. **_complete_**
 - Define the following endpoints method: `getFeaturedSpeaker()` **_complete_**
 
-## Added additional task - email when session is Added
-Did this to understand how to create tasks with parameters
+## Come up with 2 additional queries
+### Query Problem
+Solve the following query related problem: Let's say that you don't like workshops and you don't like sessions after 7 pm. How would you handle a query for all non-workshop sessions before 7 pm? What is the problem for implementing this query? What ways to solve it did you think of?
+
+The issue with the query is that the engine itself can't take more than one property for an inequality filter.  This means that anything other than `==` is an inequality filter.  Initially I had assumed that I could find all workshops after 7pm, and take the inverse, but the engine rejected all attempts even though it should logically succeed. As an alternative, I had to break it out into a single in equality filter then remove the workshops explicitly in a `for` loop.
+
+### Additional Queries:
+`getSessionsNoSpeaker` Return all the sessions for which we don't have a known speaker - as a future enhancement provide the ability to edit the sessions after creation. Some of these values might be legitimate placeholders, so you might not have confirmation of speaker, but would be required to book a venue ahead of time.
+
+`getAllConferencesWithoutSessions` Return all the conferences which don't have any sessions against them, to allow an organiser to fill in some of the holes that will exist around given topics.
+
+`getAllShortSessions` Return all sessions under 60 minutes long, to allow the user to select something to fill in any gaps in their schedules.
+
+## Notes on implementation:
+Struggled with debugging initially, as in Chrome the behaviour of the local instance changed fairly drastically the moment I was adding new ndb entities. Also = lots of finger trouble led to almost constant misspellings of ndb. I did struggle with debugging in the app engine, as I kept losing trace of the log locations, and having to jump around to get entity contents is much harder than I'm used to.  Coming from a traditional rdbms background, I think debugging this way is much harder, as I would simply set my breakpoints in code, tail any logs that I set up, and turn on the general query log in the database engine to make sure my inserts are rational.  The app engine abstraction makes it much harder to create a single unified debugging environment - so I'd like to see if people have a solution for that.
 
 [1]: https://developers.google.com/appengine
 [2]: http://python.org
