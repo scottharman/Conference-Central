@@ -1,6 +1,6 @@
 Conference Central application - part of the Udacity Fullstack Nano degree
 
-The intent of this is to provide a location where users can register conferences with details about name, location - then create sessions where users are able to add them to a list of sessions they'd be interested in attending. Currently this has only the API endpoints available, but can be tested via the endpoints tool
+The intent of this is to provide a location where users can register conferences with details about name, location - then create sessions where users are able to add them to a list of sessions they'd be interested in attending. Currently this has only the API endpoints available, but can be tested via the endpoints tool.  The current build is available [here][8]
 
 # Products
 - [App Engine][1]
@@ -90,3 +90,4 @@ Struggled with debugging initially, as in Chrome the behaviour of the local inst
 [5]: https://console.developers.google.com/
 [6]: https://localhost:8080/
 [7]: https://developers.google.com/appengine/docs/python/endpoints/endpoints_tool
+[8]: https://udacity-conference-app-1196.appspot.com/_ah/api/explorer
