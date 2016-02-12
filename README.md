@@ -12,7 +12,9 @@ The intent of this is to provide a location where users can register conferences
 - [Google Cloud Endpoints][3]
 
 # Setup Instructions
-Application is currently deployed at [udacity-conference-app-1196.appspot.com][4] and can be tested using the API Explorer
+Application is currently deployed at [udacity-conference-app-1196.appspot.com][4] and can be tested using the [API Explorer][8]
+
+If you wish to run locally or via your own endpoint, you will need to follow the instructions below:
 1. Update the value of `application` in `app.yaml` to the app ID you have registered in the App Engine admin console and would like to use to host your instance of this sample.
 2. Update the values at the top of `settings.py` to reflect the respective client IDs you have registered in the [Developer Console][5].
 3. Update the value of CLIENT_ID in `static/js/app.js` to the Web client ID
