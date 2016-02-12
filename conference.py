@@ -107,12 +107,12 @@ CONF_POST_REQUEST = endpoints.ResourceContainer(
 # Session post request - to pass in the conf key
 SESS_GET_REQUEST = endpoints.ResourceContainer(
     message_types.VoidMessage,
-    websafeConferenceKey=messages.StringField(1),
+    websafeConferenceKey=messages.StringField(1, required=True),
 )
 # Session type post request - to pass in the conf key and type
 SESS_GET_TYPE_REQUEST = endpoints.ResourceContainer(
     message_types.VoidMessage,
-    websafeConferenceKey=messages.StringField(1),
+    websafeConferenceKey=messages.StringField(1, required=True),
     typeOfSession=messages.StringField(2),
 )
 # Session post request - to pass in the conf key
@@ -124,12 +124,12 @@ SPEAKER_GET_REQUEST = endpoints.ResourceContainer(
 # Get request for session
 SESS_POST_REQUEST = endpoints.ResourceContainer(
     SessionForm,
-    websafeConferenceKey=messages.StringField(1),
+    websafeConferenceKey=messages.StringField(1, required=True),
 )
 
 WISHLIST_REQUEST = endpoints.ResourceContainer(
     message_types.VoidMessage,
-    websafeSessionKey=messages.StringField(1),
+    websafeSessionKey=messages.StringField(1, required=True),
 )
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -536,6 +536,55 @@ class ConferenceApi(remote.Service):
 
 
 # TODO Define additional useful searches for sessions or conferences
+    @endpoints.method(message_types.VoidMessage, SessionForms,
+                      path='/sessions/sansspeaker',
+                      http_method='GET',
+                      name='getSessionsNoSpeaker')
+    def getSessionsNoSpeaker(self, request):
+        """All sessions with no speaker"""
+        sessions = Session.query().filter(
+            Session.speakerUserId == 'None')
+        return SessionForms(items=[self._copySessionToForm(session) for
+                            session in sessions])
+
+    @endpoints.method(message_types.VoidMessage, ConferenceForms,
+                      path='/conferences/sanssessions',
+                      http_method='GET',
+                      name='getAllConferencesWithoutSessions')
+    def getAllConferencesWithoutSessions(self, request):
+        """All Conferences without Sessions"""
+        """ This seemed like a good idea, but execution turned out more
+        difficult thank expected! """
+        # get all conferences
+        conf = Conference.query()
+        # get all sessions
+        sessions = Session.query()
+        conferences = []
+        for c in conf:
+            conferences.append(c)
+        # remove all session's parent keys from conference list
+        for session in sessions:
+            if session.key.parent().get() in conferences:
+                conferences.remove(session.key.parent().get())
+
+
+        # return individual ConferenceForm object per Conference
+        return ConferenceForms(
+            items=[self._copyConferenceToForm(conf, "") for conf in conferences]
+        )
+
+    @endpoints.method(message_types.VoidMessage, SessionForms,
+                      path='/sessions/short',
+                      http_method='GET',
+                      name='getAllShortSessions')
+    def getAllShortSessions(self, request):
+        """All Sessions less than an hour, but with a sane duration"""
+        sessions = Sessions.query().order(Session.startTime)
+        sessions = sessions.filter(Session.duration < 60)
+
+        return SessionForms(items=[self._copySessionToForm(session) for
+                            session in sessions])
+
 
 
 # - - - Wishlist objects - - - - - - - - - - - - - - - - - - -
@@ -557,7 +606,11 @@ class ConferenceApi(remote.Service):
             raise endpoints.BadRequestException("Session\
              'websafeSessionKey' field required")
         # get actual session.key from sessionkey
-        session_key = ndb.Key(urlsafe=request.websafeSessionKey).get().key
+        session = ndb.Key(urlsafe=request.websafeSessionKey).get()
+
+        if not session:
+            raise endpoints.BadRequestException("Valid Session\
+             required - invalid session key provided.")
         # get user profile from user id
         prof = self._getProfileFromUser()
 
@@ -568,7 +621,7 @@ class ConferenceApi(remote.Service):
         return self._copyProfileToForm(prof)
 
 
-    @endpoints.method(WISHLIST_REQUEST, SessionForms,
+    @endpoints.method(message_types.VoidMessage, SessionForms,
                       path='sessions/wishlist',
                       http_method='GET',
                       name='getSessionsInWishlist')
@@ -586,7 +639,7 @@ class ConferenceApi(remote.Service):
 
         sessions = []
         for session in prof.sessionWishList:
-            sessions.append(ndb.Key(session).get())
+            sessions.append(ndb.Key(urlsafe=session).get())
 
         # return the wishlist as a list of sessionforms
         return SessionForms(items=[self._copySessionToForm(session) for
@@ -598,7 +651,22 @@ class ConferenceApi(remote.Service):
                       name='deleteSessionInWishlist')
     def deleteSessionInWishlist(self, request):
         """Remove the specified session for user's wishlist"""
+        user = endpoints.get_current_user()
+        if not user:
+            raise endpoints.UnauthorizedException('Authorization required')
+        # get user profile, then fetch list of session keys from user profile
+        prof = self._getProfileFromUser()
+        # If there is a wishlist, fetch it, else throw an error
+        if not prof.sessionWishList:
+            raise endpoints.BadRequestException("User has no wishlist")
 
+        if request.websafeSessionKey not in prof.sessionWishList:
+            raise endpoints.BadRequestException("No matching key in wishlist")
+
+        # return the wishlist as a list of sessionforms
+        prof.sessionWishList.remove(request.websafeSessionKey)
+        prof.put()
+        return BooleanMessage(data=True)
 
 # - - - Profile objects - - - - - - - - - - - - - - - - - - -
 
