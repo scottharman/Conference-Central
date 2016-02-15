@@ -113,7 +113,7 @@ SESS_GET_REQUEST = endpoints.ResourceContainer(
 SESS_GET_TYPE_REQUEST = endpoints.ResourceContainer(
     message_types.VoidMessage,
     websafeConferenceKey=messages.StringField(1, required=True),
-    type=messages.StringField(2, required=False),
+    typeOfSession=messages.StringField(2, required=False),
 )
 # Session post request - to pass in the conf key
 SPEAKER_GET_REQUEST = endpoints.ResourceContainer(
@@ -395,9 +395,9 @@ class ConferenceApi(remote.Service):
                 if field.name.endswith('Date') or field.name.endswith('Time'):
                     setattr(sf, field.name, str(getattr(sess, field.name)))
                 # Setting enum value for typeofsession - failed again.
-                # elif field.name == "typeOfSession":
-                #     setattr(sf, field.name, getattr(TypeOfSession,
-                #             getattr(sess, field.name)))
+                elif field.name == "typeOfSession":
+                    setattr(sf, field.name, getattr(TypeOfSession,
+                            str(getattr(sess, field.name))))
                 else:
                     setattr(sf, field.name, getattr(sess, field.name))
 
@@ -429,7 +429,7 @@ class ConferenceApi(remote.Service):
                 by organiser")
 
         # copy SessionForm/ProtoRPC Message into dict
-        data = {field.name: getattr(request, field.name) \
+        data = {field.name: getattr(request, field.name)
                 for field in request.all_fields()}
         del data['websafeKey']
         del data['websafeConferenceKey']
@@ -451,7 +451,7 @@ class ConferenceApi(remote.Service):
         # Turning enum type of session back to string.
         # failed again - will uppercase it instead.
         if data['typeOfSession']:
-            data['typeOfSession'] = data['typeOfSession'].upper()
+            data['typeOfSession'] = str(data['typeOfSession'])
         # generate Session Key based on Conference Key
         s_id = Session.allocate_ids(size=1, parent=conf_key)[0]
         s_key = ndb.Key(Session, s_id, parent=conf_key)
@@ -496,7 +496,7 @@ class ConferenceApi(remote.Service):
                                    session in sessions])
 
     @endpoints.method(SESS_GET_TYPE_REQUEST, SessionForms,
-                      path='conference/{websafeConferenceKey}/session/{type}',
+                      path='conference/{websafeConferenceKey}/session/{typeOfSession}',  # noqa
                       http_method='GET',
                       name='getConferenceSessionsByType')
     def getConferenceSessionsByType(self, request):
@@ -505,9 +505,8 @@ class ConferenceApi(remote.Service):
         sessions = Session.query(ancestor=ndb.Key(urlsafe=request.                                                  websafeConferenceKey)).order(Session.startTime)  # noqa
         # sessions = sessions.filter(Session.typeOfSession == 'KEYNOTE')
         # testing on string match of type keynote
-        if request.type:
-            sessions = sessions.filter(Session.typeOfSession \
-                                       == request.type.upper())
+        sessions = sessions.filter(Session.typeOfSession \
+                                   == request.typeOfSession.upper())
         return SessionForms(items=[self._copySessionToForm(session) for
                             session in sessions])
 
