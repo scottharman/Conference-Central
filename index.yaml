@@ -110,13 +110,13 @@ indexes:
   ancestor: yes
   properties:
   - name: typeOfSession
-  - name: speakerUserId
+  - name: speaker
   - name: startTime
 
 - kind: Session
   ancestor: yes
   properties:
-  - name: speakerUserId
+  - name: speaker
   - name: startTime
 
 - kind: Session

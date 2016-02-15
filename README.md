@@ -25,13 +25,13 @@ If you wish to run locally or via your own endpoint, you will need to follow the
 
 # Task Implementation
 ## Task 1 - Session class and SessionForm class
-Define Session class and SessionForm The Session model contains the following, everything was fairly straightforward, as it wouldn't make sense to have multiple durations, or types of session.   We can have multiple different highlights, and a speaker wouldn't necessarily have to be an entity.  This is currently being worked on.
+Define Session class and SessionForm The Session model contains the following, everything was fairly straightforward, as it wouldn't make sense to have multiple durations, or types of session.   We can have multiple different highlights, and a speaker wouldn't necessarily have to be an entity.  I decided not to implement a speaker class
 
    `Session name`  _string_ **_complete_**
 
    `highlights` _array of strings_ **_complete_**
 
-   `speaker` _string_ **_complete_**
+   `speaker` _string_ **_clarified name of speaker_**
 
    `duration` _int field_ **_complete_**
 
@@ -42,7 +42,7 @@ Define Session class and SessionForm The Session model contains the following, e
    `start time (in 24 hour notation so it can be ordered).` _time field_ implicitly orderable
 
 ## Added Endpoints
-Implentation of the Session endpoints - these are the required endpoints for basic session manipulation.  Currently getSessionsBySpeaker takes a string, and not a speaker object, and I will implement this if I have time.  In all cases except for `getSessionsBySpeaker` the endpoint takes a `websafeConferenceKey` which is accessible through the Conference object, so provided you can find a conference, it's trivial to locate the Key required to use as a parent when creating the session.
+Implentation of the Session endpoints - these are the required endpoints for basic session manipulation.  getSessionsBySpeaker takes a string, and I am not currently planning to implement a speaker class.  In all cases except for `getSessionsBySpeaker` the endpoint takes a `websafeConferenceKey` which is accessible through the Conference object, so provided you can find a conference, it's trivial to locate the Key required to use as a parent when creating the session.
 
   `getConferenceSessions(websafeConferenceKey)` -- Given a conference, return all sessions **_complete_**
 

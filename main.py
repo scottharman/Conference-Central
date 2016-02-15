@@ -54,8 +54,9 @@ class SetSpeakerHandler(webapp2.RequestHandler):
     def post(self):
         """Set Speaker Announcement in Memcache.
         Switch from get to post when copying the announcment handler"""
-        speakerUserId = self.request.get('speakerUserId')
-        ConferenceApi._cacheFeaturedSpeaker(speakerUserId)
+        speaker = self.request.get('speaker')
+        conf_key = self.request.get('conf_key')
+        ConferenceApi._cacheFeaturedSpeaker(speaker, conf_key)
         self.response.set_status(204)
 
 

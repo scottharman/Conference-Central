@@ -120,8 +120,8 @@ class Session(ndb.Model):
     """Session object - all fields for object"""
     name = ndb.StringProperty(required=True)
     highlights = ndb.StringProperty(repeated=True)
-    speakerUserId = ndb.StringProperty()
-    duration = ndb.IntegerProperty()
+    speaker = ndb.StringProperty()
+    duration = ndb.IntegerProperty()  # duration in minutes
     typeOfSession = ndb.StringProperty()
     startDate = ndb.DateProperty(auto_now_add=True)  # defaults to today
     startTime = ndb.TimeProperty()
@@ -131,8 +131,8 @@ class SessionForm(messages.Message):
     """Session Form - messages relayed via form to object"""
     name = messages.StringField(1)
     highlights = messages.StringField(2, repeated=True)
-    speakerUserId = messages.StringField(3)
-    duration = messages.IntegerField(4)
+    speaker = messages.StringField(3)
+    duration = messages.IntegerField(4)  # duration in minutes
     typeOfSession = messages.StringField(5)
     # Foiled again!
     # typeOfSession = messages.EnumField('TypeOfSession', 5)

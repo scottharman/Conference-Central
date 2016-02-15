@@ -59,7 +59,7 @@ MEMCACHE_ANNOUNCEMENTS_KEY = "RECENT_ANNOUNCEMENTS"
 MEMCACHE_SPEAKER_KEY = "FEATURED SPEAKER"
 ANNOUNCEMENT_TPL = ('Last chance to attend! The following conferences '
                     'are nearly sold out: %s')
-SPEAKER_TPL = ('Join us to hear %s')
+SPEAKER_TPL = ("Join us to hear %s at the following Sessions: %s")
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 DEFAULTS = {
@@ -73,7 +73,7 @@ SESSION_DEFAULTS = {
     "highlights": ["Default", ],
     "duration": 60,
     "startTime": '10:00',
-    "speakerUserId": "None",
+    "speaker": "None",
     "typeOfSession": "WORKSHOP",
     # Can't get this working
     # "typeOfSession": str(TypeOfSession.WORKSHOP),
@@ -466,11 +466,10 @@ class ConferenceApi(remote.Service):
                       url='/tasks/send_session_email'
                       )
 
-        # Add featured speaker - generate code and add here.
-        if Session.query(Session.speakerUserId == \
-                         data['speakerUserId']).count() > 1:
-            taskqueue.add(params={'speakerUserId': data['speakerUserId']},
-                          url='/tasks/set_featuredspeaker')
+        # Add featured speaker - check speaker count and sessions in task
+        taskqueue.add(params={'speaker': data['speaker'],
+                              'conf_key': request.websafeConferenceKey},
+                      url='/tasks/set_featuredspeaker')
         # return session form
         return request
 
@@ -519,7 +518,7 @@ class ConferenceApi(remote.Service):
     def getSessionsBySpeaker(self, request):
         """Filter speakers against all sessions"""
         sessions = Session.query().filter(
-            Session.speakerUserId == request.speaker)
+            Session.speaker == request.speaker)
         return SessionForms(items=[self._copySessionToForm(session) for
                             session in sessions])
 
@@ -527,20 +526,21 @@ class ConferenceApi(remote.Service):
     @endpoints.method(message_types.VoidMessage, SessionForms,
                       path='conference/early/sessions',
                       http_method='GET',
-                      name='getEarlyNonKeynoteSessions')
-    def getEarlyNonKeynoteSessions(self, request):
-        """Query all sessions - returning all non-keynotes before 7pm"""
+                      name='getEarlyNonWorkshopSessions')
+    def getEarlyNonWorkshopSessions(self, request):
+        """Query all sessions - returning all non-workshop sessions
+        before 7pm"""
         evening = datetime.strptime("19:00", "%H:%M").time()
         # To cope with google error - cannot have inequality filters on
         # multiple properties - split the query and execute in order
-        sessions = Session.query().order(Session.startTime)
-        sessions = sessions.filter(Session.startTime < evening)
+        sessions = Session.query(Session.startTime < evening).\
+            order(Session.startTime)
         # have to create a new structure to contain filtered sessions.
         filtered = []
         for session in sessions:
-            if session.typeOfSession != 'KEYNOTE':
+            if session.typeOfSession != 'WORKSHOP':
                 filtered.append(session)
-        sessions = sessions.filter(Session.startTime < evening)
+        # removed copy/pasted query filter.
         return SessionForms(items=[self._copySessionToForm(session) for
                                    session in filtered])
 
@@ -553,7 +553,7 @@ class ConferenceApi(remote.Service):
     def getSessionsNoSpeaker(self, request):
         """All sessions with no speaker"""
         sessions = Session.query().filter(
-            Session.speakerUserId == 'None')
+            Session.speaker == 'None')
         return SessionForms(items=[self._copySessionToForm(session) for
                             session in sessions])
 
@@ -784,12 +784,18 @@ class ConferenceApi(remote.Service):
 
 # - - - Speaker Announcement - - - - - - - - - - - - - - - - - - - -
     @staticmethod
-    def _cacheFeaturedSpeaker(speakerUserId):
-        """Create Speaker Announcement & assign to memcache
-        """
-        speaker = speakerUserId
-        # announce_speaker = SPEAKER_TPL % (speaker)
-        memcache.set(MEMCACHE_SPEAKER_KEY, speaker)
+    def _cacheFeaturedSpeaker(speaker, conf_key):
+        """Create Speaker Announcement & assign to memcache.
+        Get SessionKey to find conference, then look up all sessions by
+        speaker in that conference to add to announcement."""
+        sessions = Session.query(ancestor=ndb.Key(
+                                 urlsafe=conf_key))
+        sessions = sessions.filter(Session.speaker == speaker)
+        if sessions.count() > 1:
+            speakerMessage = SPEAKER_TPL % (speaker,
+                                            ', '.join([session.name for session
+                                                      in sessions]))
+            memcache.set(MEMCACHE_SPEAKER_KEY, speakerMessage)
 
         return speaker
 
